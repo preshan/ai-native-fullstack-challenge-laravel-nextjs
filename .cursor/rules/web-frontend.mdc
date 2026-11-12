@@ -1,0 +1,33 @@
+---
+description: Rules for the Next.js and TanStack Query frontend
+globs: apps/web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Web frontend
+
+- Every mutation invalidates (or updates) every query whose data it changes.
+- All API calls go through the typed client in `src/lib/api.ts`. No untyped `fetch` in components.
+- Shared fixed values are `as const` tuples with a derived type.
+- Every mutation shows success and error feedback.
+- Use constrained inputs (select, radio) instead of free text when the values are fixed.
+- Check UI changes in the browser without a manual reload.
+
+## Good
+
+```ts
+export const CATEGORIES = ['billing', 'sales', 'support', 'unknown'] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+useMutation({
+  mutationFn: classifyRequest,
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requests'] }),
+});
+```
+
+## Bad
+
+```tsx
+useMutation({ mutationFn: classifyRequest }); // table stays stale, no feedback
+<input placeholder="billing | sales | support | unknown" /> // free text for a fixed set
+```

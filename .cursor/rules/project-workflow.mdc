@@ -1,0 +1,41 @@
+---
+description: Workflow, git safety and verification rules for the challenge
+alwaysApply: true
+---
+
+# Project workflow
+
+- Remote: only `preshan/ai-native-fullstack-challenge-laravel-nextjs` (my fork). Never touch upstream.
+- Never push, open a PR, add collaborators, change visibility or deploy without an explicit request.
+- Ask before every commit and every push. One concern per commit.
+- Stage explicit paths only. Never `git add -A` or `git add .` at the repo root.
+- Before committing, show `git status --short` and `git diff --cached --stat`, and flag anything
+  staged that the message does not describe.
+- Unknown commits, files or branches: stop and ask.
+- Do not reformat or refactor starter files a task does not need.
+- No em dashes, en dashes or arrow characters in docs, comments, commit messages or cards.
+- Never claim a check that was not run. Quote the real command and its output.
+- Do not code a task until its plan is approved.
+
+## Commits
+
+Conventional Commits, imperative, under 72 characters. Types: feat, fix, refactor, test, chore,
+docs, perf, ci. Scopes: api, web, ci, db. Body says why and any behaviour change.
+
+- Good: `fix(api): remove N+1 from request list`
+- Bad: `Fixed stuff and updated tests` (no type, past tense, two concerns)
+
+## Verify before done
+
+```
+docker compose exec api php artisan test
+docker compose exec api vendor/bin/pint --test <changed files>
+docker compose exec web npm run typecheck
+```
+
+## Notes and decisions
+
+- Every deliberate behaviour change (status codes, limits, response shape) is recorded.
+- Drafts live outside the repo in `/Users/preshan/Documents/Gapstars/baseline-evidence-2026-11-12/`
+  (`AI_USAGE.md`, `DECISIONS.md`). Never edit the repo copies; the owner writes those by hand.
+- Measure before and after on the same seed, and prove unchanged output with a checksum.
