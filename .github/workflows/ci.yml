@@ -31,12 +31,13 @@ jobs:
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
-      DB_DATABASE: request_desk
+      # An exported DB_DATABASE wins over phpunit.xml, so the job default is the test database.
+      DB_DATABASE: request_desk_test
       DB_USERNAME: request_desk
       DB_PASSWORD: request_desk
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -44,7 +45,7 @@ jobs:
           extensions: pdo_mysql
           coverage: none
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -70,6 +71,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Check PHP formatting
+        working-directory: apps/api
+        run: vendor/bin/pint --test
+
       - name: Lint
         run: npm run lint --if-present --prefix apps/web
 
@@ -86,7 +91,7 @@ jobs:
       - name: Migrate
         working-directory: apps/api
         env:
-          DB_DATABASE: request_desk_app
+          DB_DATABASE: request_desk
         run: php artisan migrate --force
 
       - name: Build

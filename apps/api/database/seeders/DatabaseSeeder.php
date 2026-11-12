@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
     ];
 
     private const REQUEST_COUNT = 1200;
+
     private const INSERT_CHUNK = 500;
 
     public function run(): void

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\Classifier;
+use App\Services\KeywordClassifier;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -9,6 +11,13 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * @var array<class-string, class-string>
+     */
+    public array $bindings = [
+        Classifier::class => KeywordClassifier::class,
+    ];
+
     public function register(): void
     {
         //

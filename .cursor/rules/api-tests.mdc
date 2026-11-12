@@ -1,0 +1,39 @@
+---
+description: Rules for API tests
+globs: apps/api/tests/**
+alwaysApply: false
+---
+
+# API tests
+
+- Tests hit the test database from `phpunit.xml` (`request_desk_test`), never the dev database.
+  Use `RefreshDatabase` for anything that touches the database.
+- One regression test per changed or preserved behaviour. Test both sides of each boundary
+  (for example limit and limit + 1, valid and invalid input).
+- Use `#[DataProvider]` attributes, not `@dataProvider` docblocks.
+- Prove a swappable dependency is really swappable: bind a fake in the container and assert the
+  endpoint uses it.
+- Guard performance fixes with a query count assertion, not a timing.
+
+## Good
+
+```php
+#[DataProvider('categoryMessages')]
+public function test_classifies_by_keyword(string $message, string $expected): void
+{
+    $this->postJson('/requests/classify', ['message' => $message])
+        ->assertOk()->assertJsonPath('category', $expected);
+}
+
+$this->app->instance(Classifier::class, new FakeClassifier('sales'));
+```
+
+## Bad
+
+```php
+/** @dataProvider categoryMessages */  // docblock provider
+public function test_it_works(): void
+{
+    $this->get('/requests')->assertOk();  // no boundary, no shape, no query count
+}
+```

@@ -1,0 +1,41 @@
+---
+description: Laravel API structure, persistence and query rules
+globs: apps/api/**/*.php
+alwaysApply: false
+---
+
+# Laravel API
+
+- Validation lives in Form Requests. Controllers stay thin and declare return types.
+- Output goes through API Resources, not hand-built arrays.
+- Business rules live in services or policies. Interfaces go in `app/Contracts` and are bound in
+  `AppServiceProvider::$bindings`.
+- New persistence goes through a repository. Use backed enums and readonly value objects instead
+  of loose arrays.
+- No queries in loops: eager load or aggregate (`withCount`, subqueries). List endpoints are bounded.
+- Wrap writes that touch more than one table in a transaction.
+- New migrations are named with today's date. Never edit a migration that has already run.
+
+## Good
+
+```php
+public function classify(ClassifyRequest $request): ClassificationResource
+{
+    return new ClassificationResource($this->classifier->classify($request->message()));
+}
+
+CustomerRequest::query()->withCount('notes')->with('latestNote')->latest()->limit(100)->get();
+```
+
+## Bad
+
+```php
+public function classify(Request $request)
+{
+    $message = $request->input('message');        // validation inline
+    if (str_contains($message, 'refund')) { ... } // business rule in controller
+    return ['category' => 'billing'];          // loose array, no resource
+}
+
+foreach (CustomerRequest::all() as $r) { $r->notes()->get(); } // N+1, unbounded
+```

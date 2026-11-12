@@ -1,0 +1,36 @@
+---
+description: Rules for GitHub Actions workflow changes
+globs: .github/workflows/**
+alwaysApply: false
+---
+
+# CI workflow
+
+- Keep every existing step. Fix the cause of a failure, never weaken or skip the check.
+- Do not add `continue-on-error`, `|| true` or removed steps to make a run green.
+- Rehearse changes in a throwaway container from a clean copy (no `vendor`, `node_modules` or
+  `.env`) before pushing. Record which steps were rehearsed and which could not be verified.
+- Confirm which database the tests really used, not just that they passed.
+
+## Rehearsal
+
+```
+git archive HEAD | tar -x -C /tmp/ci-clean
+docker run --rm -v /tmp/ci-clean:/src -w /src/apps/api php:8.3-cli <ci step>
+```
+
+## Good
+
+```yaml
+- name: Migrate
+  run: php artisan migrate --force
+  env:
+    DB_DATABASE: request_desk   # the database the MariaDB service creates
+```
+
+## Bad
+
+```yaml
+- name: Migrate
+  run: php artisan migrate --force || true   # hides the failure
+```
