@@ -14,8 +14,20 @@ export type RequestListItem = {
   updatedAt: string;
 };
 
-export async function fetchRequests(): Promise<RequestListItem[]> {
-  const res = await fetch(`${API_URL}/requests`);
+export type Paginated<T> = {
+  data: T[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+};
+
+export async function fetchRequests(page = 1): Promise<Paginated<RequestListItem>> {
+  const res = await fetch(`${API_URL}/requests?page=${page}`, {
+    headers: { Accept: 'application/json' },
+  });
   if (!res.ok) {
     throw new Error(`Failed to load requests (${res.status})`);
   }

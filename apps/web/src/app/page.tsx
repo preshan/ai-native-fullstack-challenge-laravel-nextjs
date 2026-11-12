@@ -1,7 +1,7 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import {
   classifyMessage,
   createRequest,
@@ -16,10 +16,33 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
 
-  const requestsQuery = useQuery({
+  const requestsQuery = useInfiniteQuery({
     queryKey: ['requests'],
-    queryFn: fetchRequests,
+    queryFn: ({ pageParam }) => fetchRequests(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: ({ meta }) =>
+      meta.current_page < meta.last_page ? meta.current_page + 1 : undefined,
   });
+
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = requestsQuery;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const createMutation = useMutation({
     mutationFn: (message: string) => createRequest(message),
@@ -52,7 +75,9 @@ export default function HomePage() {
     );
   }
 
-  const requests = requestsQuery.data ?? [];
+  const pages = requestsQuery.data?.pages ?? [];
+  const requests = pages.flatMap((page) => page.data);
+  const total = pages[0]?.meta.total ?? 0;
 
   return (
     <div className="space-y-6">
@@ -89,6 +114,10 @@ export default function HomePage() {
         </button>
       </form>
 
+      <p className="text-sm text-slate-600" data-testid="requests-count">
+        Showing {requests.length} of {total} requests
+      </p>
+
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -101,7 +130,7 @@ export default function HomePage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {requests.slice(0, 25).map((row) => (
+            {requests.map((row) => (
               <tr key={row.id}>
                 <td className="max-w-md px-4 py-3">
                   <div className="font-medium text-slate-900">{row.message}</div>
@@ -153,6 +182,14 @@ export default function HomePage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div ref={loadMoreRef} className="text-center text-sm text-slate-500">
+        {isFetchingNextPage
+          ? 'Loading more…'
+          : hasNextPage
+            ? null
+            : `All ${total} requests loaded`}
       </div>
 
       {(statusMutation.isSuccess || classifyMutation.isSuccess) && (
