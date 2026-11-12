@@ -10,12 +10,15 @@ classification history. Tasks 1 to 4 were the priority. Task 5 is the thin slice
   paginated the response to 25 rows by default (`config/pagination.php`, max 100). The UI only
   ever showed 25 rows, so returning everything was wasted work. Row fields stayed the same.
 - **UI freshness.** Status and classify mutations invalidate the `['requests']` infinite query on
-  success and return that promise, so the row stays pending until the refetch lands. I chose
-  invalidation over writing the cache by hand because classify can also move `open` to
-  `in_progress`, and the classify response does not return the full row. Pending status and
-  classify work is tracked per row id, because `useMutation` only keeps the latest call. Load-more
-  waits while any fetch is running, and uses `cancelRefetch: false`, so scrolling cannot cancel a
-  refresh after an action.
+  success and return that promise, so the row stays pending until the refetch lands. Classify also
+  invalidates `['history']`, so the history page is not stuck on a 10s stale cache after a new
+  classification. I chose invalidation over writing the cache by hand because classify can also
+  move `open` to `in_progress`, and the classify response does not return the full row. Pending
+  status and classify work is tracked per row id, because `useMutation` only keeps the latest call.
+  Load-more waits while any fetch is running, and uses `cancelRefetch: false`, so scrolling cannot
+  cancel a refresh after an action. A failed load-more keeps the rows already on screen and shows a
+  retry button. Write helpers send `Accept: application/json` so Laravel returns 422 JSON on bad
+  input instead of a redirect.
 - **Classification structure.** Each concern has one home:
   - input validation in `ClassifyRequest`
   - keyword scoring in `KeywordClassifier`, behind the `Classifier` interface
