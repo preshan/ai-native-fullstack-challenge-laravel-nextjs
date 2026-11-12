@@ -29,14 +29,21 @@ export default function HomePage() {
       meta.current_page < meta.last_page ? meta.current_page + 1 : undefined,
   });
 
-  const { hasNextPage, isFetching, isFetchingNextPage, fetchNextPage } = requestsQuery;
+  const {
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = requestsQuery;
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
     // Gate on any fetch (including invalidate refreshes). fetchNextPage would otherwise
     // cancel that refresh by default and leave the table stale after a successful action.
-    if (!sentinel || !hasNextPage || isFetching) {
+    // Also stop auto-load after a next-page failure so the user can retry deliberately.
+    if (!sentinel || !hasNextPage || isFetching || isFetchNextPageError) {
       return;
     }
     const observer = new IntersectionObserver(
@@ -49,7 +56,7 @@ export default function HomePage() {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetching, fetchNextPage]);
+  }, [hasNextPage, isFetching, isFetchNextPageError, fetchNextPage]);
 
   const createMutation = useMutation({
     mutationFn: (message: string) => createRequest(message),
@@ -94,7 +101,10 @@ export default function HomePage() {
         kind: 'success',
         text: `Classified as ${category} (${confidence.toFixed(2)}).`,
       });
-      return queryClient.invalidateQueries({ queryKey: ['requests'] });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['requests'] }),
+        queryClient.invalidateQueries({ queryKey: ['history'] }),
+      ]);
     },
     onError: (error) => setFeedback({ kind: 'error', text: error.message }),
     onSettled: (_data, _error, { id }) => {
@@ -113,7 +123,8 @@ export default function HomePage() {
     return <p className="text-slate-600">Loading requests…</p>;
   }
 
-  if (requestsQuery.isError) {
+  // Only blank the page when the first load failed. A failed "load more" keeps the rows.
+  if (requestsQuery.isError && !requestsQuery.data) {
     return (
       <p className="text-red-700">
         Could not load requests. Is the API running at{' '}
@@ -244,11 +255,22 @@ export default function HomePage() {
       </div>
 
       <div ref={loadMoreRef} className="text-center text-sm text-slate-500">
-        {isFetchingNextPage
-          ? 'Loading more…'
-          : hasNextPage
-            ? null
-            : `All ${total} requests loaded`}
+        {isFetchNextPageError ? (
+          <div className="space-y-2">
+            <p className="text-red-700">Could not load more requests.</p>
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50"
+              onClick={() => fetchNextPage({ cancelRefetch: false })}
+            >
+              Retry
+            </button>
+          </div>
+        ) : isFetchingNextPage ? (
+          'Loading more…'
+        ) : hasNextPage ? null : (
+          `All ${total} requests loaded`
+        )}
       </div>
     </div>
   );

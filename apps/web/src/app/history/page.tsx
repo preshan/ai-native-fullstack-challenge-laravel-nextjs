@@ -60,7 +60,7 @@ export default function HistoryPage() {
                 <tr>
                   <th className="px-4 py-2 font-medium">Category</th>
                   <th className="px-4 py-2 font-medium">Confidence</th>
-                  <th className="px-4 py-2 font-medium">Request</th>
+                  <th className="px-4 py-2 font-medium">Message</th>
                   <th className="px-4 py-2 font-medium">Source</th>
                   <th className="px-4 py-2 font-medium">When</th>
                 </tr>
@@ -71,7 +71,7 @@ export default function HistoryPage() {
                     <td className="px-4 py-2">{item.category}</td>
                     <td className="px-4 py-2">{item.confidence.toFixed(2)}</td>
                     <td className="px-4 py-2 text-slate-600">
-                      {item.requestMessage ?? '(no request)'}
+                      {item.message ?? '(no message)'}
                     </td>
                     <td className="px-4 py-2 text-slate-600">{item.source}</td>
                     <td className="px-4 py-2 text-slate-600">

@@ -46,7 +46,10 @@ export type CreatedRequest = {
 export async function createRequest(message: string): Promise<CreatedRequest> {
   const res = await fetch(`${API_URL}/requests`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify({ message }),
   });
   if (!res.ok) {
@@ -72,7 +75,10 @@ export async function updateRequestStatus(
 ): Promise<UpdatedRequest> {
   const res = await fetch(`${API_URL}/requests/${id}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify({ status }),
   });
   if (!res.ok) {
@@ -93,7 +99,10 @@ export async function classifyMessage(
 ): Promise<ClassificationResult> {
   const res = await fetch(`${API_URL}/requests/classify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify({ message, requestId }),
   });
   if (!res.ok) {
@@ -108,7 +117,7 @@ export type ClassificationCategory = (typeof CLASSIFICATION_CATEGORIES)[number];
 export type ClassificationHistoryItem = {
   id: string;
   requestId: string | null;
-  requestMessage: string | null;
+  message: string | null;
   category: ClassificationCategory;
   confidence: number;
   source: string;
