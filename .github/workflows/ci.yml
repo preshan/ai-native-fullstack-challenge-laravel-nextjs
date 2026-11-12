@@ -71,6 +71,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Check PHP formatting
+        working-directory: apps/api
+        run: vendor/bin/pint --test
+
       - name: Lint
         run: npm run lint --if-present --prefix apps/web
 
