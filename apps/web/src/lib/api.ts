@@ -1,6 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-export type RequestStatus = 'open' | 'in_progress' | 'resolved';
+export const REQUEST_STATUSES = ['open', 'in_progress', 'resolved'] as const;
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export type RequestListItem = {
   id: string;
@@ -54,10 +55,21 @@ export async function createRequest(message: string): Promise<CreatedRequest> {
   return res.json();
 }
 
+// PATCH returns the stored model, so keys are snake_case unlike the list rows.
+export type UpdatedRequest = {
+  id: string;
+  message: string;
+  status: RequestStatus;
+  category: string | null;
+  confidence: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export async function updateRequestStatus(
   id: string,
   status: RequestStatus,
-): Promise<RequestListItem> {
+): Promise<UpdatedRequest> {
   const res = await fetch(`${API_URL}/requests/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -69,7 +81,16 @@ export async function updateRequestStatus(
   return res.json();
 }
 
-export async function classifyMessage(message: string, requestId?: string) {
+export type ClassificationResult = {
+  category: string;
+  confidence: number;
+  requestId: string | null;
+};
+
+export async function classifyMessage(
+  message: string,
+  requestId?: string,
+): Promise<ClassificationResult> {
   const res = await fetch(`${API_URL}/requests/classify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

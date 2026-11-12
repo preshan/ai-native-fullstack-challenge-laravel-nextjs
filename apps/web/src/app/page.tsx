@@ -6,15 +6,17 @@ import {
   classifyMessage,
   createRequest,
   fetchRequests,
+  REQUEST_STATUSES,
   RequestStatus,
   updateRequestStatus,
 } from '@/lib/api';
 
-const STATUSES: RequestStatus[] = ['open', 'in_progress', 'resolved'];
+type Feedback = { kind: 'success' | 'error'; text: string };
 
 export default function HomePage() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const requestsQuery = useInfiniteQuery({
     queryKey: ['requests'],
@@ -52,15 +54,37 @@ export default function HomePage() {
     },
   });
 
+  // Returning the invalidation keeps the mutation pending until the table has refetched.
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: RequestStatus }) =>
       updateRequestStatus(id, status),
+    onMutate: () => setFeedback(null),
+    onSuccess: (_data, { status }) => {
+      setFeedback({ kind: 'success', text: `Status updated to ${status}.` });
+      return queryClient.invalidateQueries({ queryKey: ['requests'] });
+    },
+    onError: (error) => setFeedback({ kind: 'error', text: error.message }),
   });
 
+  // Classify can also move the request from open to in_progress, so refetch rather than patch the row.
   const classifyMutation = useMutation({
     mutationFn: ({ id, message }: { id: string; message: string }) =>
       classifyMessage(message, id),
+    onMutate: () => setFeedback(null),
+    onSuccess: ({ category, confidence }) => {
+      setFeedback({
+        kind: 'success',
+        text: `Classified as ${category} (${confidence.toFixed(2)}).`,
+      });
+      return queryClient.invalidateQueries({ queryKey: ['requests'] });
+    },
+    onError: (error) => setFeedback({ kind: 'error', text: error.message }),
   });
+
+  const isUpdatingStatus = (id: string) =>
+    statusMutation.isPending && statusMutation.variables?.id === id;
+  const isClassifying = (id: string) =>
+    classifyMutation.isPending && classifyMutation.variables?.id === id;
 
   if (requestsQuery.isLoading) {
     return <p className="text-slate-600">Loading requests…</p>;
@@ -114,9 +138,19 @@ export default function HomePage() {
         </button>
       </form>
 
-      <p className="text-sm text-slate-600" data-testid="requests-count">
-        Showing {requests.length} of {total} requests
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p className="text-slate-600" data-testid="requests-count">
+          Showing {requests.length} of {total} requests
+        </p>
+        <p
+          role="status"
+          aria-live="polite"
+          data-testid="action-feedback"
+          className={feedback?.kind === 'error' ? 'text-red-700' : 'text-emerald-700'}
+        >
+          {feedback?.text}
+        </p>
+      </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -142,8 +176,9 @@ export default function HomePage() {
                 </td>
                 <td className="px-4 py-3">
                   <select
-                    className="rounded border border-slate-300 bg-white px-2 py-1"
-                    value={row.status}
+                    className="rounded border border-slate-300 bg-white px-2 py-1 disabled:opacity-50"
+                    value={isUpdatingStatus(row.id) ? statusMutation.variables?.status : row.status}
+                    disabled={isUpdatingStatus(row.id) || isClassifying(row.id)}
                     onChange={(e) =>
                       statusMutation.mutate({
                         id: row.id,
@@ -151,7 +186,7 @@ export default function HomePage() {
                       })
                     }
                   >
-                    {STATUSES.map((status) => (
+                    {REQUEST_STATUSES.map((status) => (
                       <option key={status} value={status}>
                         {status}
                       </option>
@@ -170,12 +205,13 @@ export default function HomePage() {
                 <td className="px-4 py-3">
                   <button
                     type="button"
-                    className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                    className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                    disabled={isUpdatingStatus(row.id) || isClassifying(row.id)}
                     onClick={() =>
                       classifyMutation.mutate({ id: row.id, message: row.message })
                     }
                   >
-                    Classify
+                    {isClassifying(row.id) ? 'Classifying…' : 'Classify'}
                   </button>
                 </td>
               </tr>
@@ -191,10 +227,6 @@ export default function HomePage() {
             ? null
             : `All ${total} requests loaded`}
       </div>
-
-      {(statusMutation.isSuccess || classifyMutation.isSuccess) && (
-        <p className="text-sm text-slate-600">Last action reported success from the API.</p>
-      )}
     </div>
   );
 }
