@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property string $id
  * @property string|null $customer_request_id
+ * @property string|null $message
  * @property string $category
  * @property float $confidence
  * @property string $source
@@ -24,7 +25,7 @@ class ClassificationRecord extends Model
 
     protected $table = 'classifications';
 
-    protected $fillable = ['customer_request_id', 'category', 'confidence', 'source'];
+    protected $fillable = ['customer_request_id', 'message', 'category', 'confidence', 'source'];
 
     protected function casts(): array
     {

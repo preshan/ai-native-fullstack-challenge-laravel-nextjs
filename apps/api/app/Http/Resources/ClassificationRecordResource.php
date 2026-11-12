@@ -12,14 +12,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ClassificationRecordResource extends JsonResource
 {
     /**
-     * @return array{id: string, requestId: string|null, requestMessage: string|null, category: string, confidence: float, source: string, createdAt: string}
+     * @return array{id: string, requestId: string|null, message: string|null, category: string, confidence: float, source: string, createdAt: string}
      */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'requestId' => $this->customer_request_id,
-            'requestMessage' => $this->request?->message,
+            'message' => $this->message,
             'category' => $this->category,
             'confidence' => $this->confidence,
             'source' => $this->source,

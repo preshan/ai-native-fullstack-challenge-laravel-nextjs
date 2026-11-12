@@ -24,6 +24,7 @@ class ClassificationHistoryTest extends TestCase
 
         $row = ClassificationRecord::query()->first();
         $this->assertSame($request->id, $row->customer_request_id);
+        $this->assertSame('Please help with my invoice', $row->message);
         $this->assertSame('billing', $row->category);
         $this->assertSame(0.86, $row->confidence);
         $this->assertSame('keyword', $row->source);
@@ -34,7 +35,25 @@ class ClassificationHistoryTest extends TestCase
         $this->postJson('/requests/classify', ['message' => 'Please help with my invoice'])->assertOk();
 
         $this->assertDatabaseCount('classifications', 1);
-        $this->assertNull(ClassificationRecord::query()->first()->customer_request_id);
+
+        $row = ClassificationRecord::query()->first();
+        $this->assertNull($row->customer_request_id);
+        $this->assertSame('Please help with my invoice', $row->message);
+    }
+
+    public function test_history_keeps_the_classified_text_not_the_request_message(): void
+    {
+        $request = CustomerRequest::create(['message' => 'Original request text', 'status' => 'open']);
+
+        $this->postJson('/requests/classify', [
+            'message' => 'Please help with my invoice',
+            'requestId' => $request->id,
+        ])->assertOk();
+
+        $this->getJson('/requests/history')
+            ->assertOk()
+            ->assertJsonPath('data.0.message', 'Please help with my invoice')
+            ->assertJsonPath('data.0.requestId', $request->id);
     }
 
     public function test_history_lists_newest_first_with_pagination_shape(): void
@@ -45,7 +64,7 @@ class ClassificationHistoryTest extends TestCase
         $response = $this->getJson('/requests/history')
             ->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'requestId', 'requestMessage', 'category', 'confidence', 'source', 'createdAt']],
+                'data' => [['id', 'requestId', 'message', 'category', 'confidence', 'source', 'createdAt']],
                 'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             ]);
 

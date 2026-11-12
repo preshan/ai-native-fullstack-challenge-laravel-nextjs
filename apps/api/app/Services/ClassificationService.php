@@ -20,7 +20,7 @@ class ClassificationService
     {
         $classification = $this->applyRules($message, $this->classifier->classify($message));
 
-        DB::transaction(function () use ($classification, $requestId) {
+        DB::transaction(function () use ($classification, $message, $requestId) {
             if ($requestId !== null) {
                 $existing = $this->requests->getById($requestId);
                 $existing->category = $classification->category->value;
@@ -31,7 +31,7 @@ class ClassificationService
                 $this->requests->save($existing);
             }
 
-            $this->record($classification, $requestId);
+            $this->record($classification, $message, $requestId);
         });
 
         return $classification;
@@ -45,17 +45,17 @@ class ClassificationService
     public function history(?Category $category, int $perPage): LengthAwarePaginator
     {
         return ClassificationRecord::query()
-            ->with('request:id,message')
             ->when($category, fn ($query) => $query->where('category', $category->value))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage);
     }
 
-    private function record(Classification $classification, ?string $requestId): void
+    private function record(Classification $classification, string $message, ?string $requestId): void
     {
         ClassificationRecord::create([
             'customer_request_id' => $requestId,
+            'message' => $message,
             'category' => $classification->category->value,
             'confidence' => $classification->confidence,
             'source' => $this->classifier->source(),
