@@ -31,7 +31,8 @@ jobs:
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
-      DB_DATABASE: request_desk
+      # An exported DB_DATABASE wins over phpunit.xml, so the job default is the test database.
+      DB_DATABASE: request_desk_test
       DB_USERNAME: request_desk
       DB_PASSWORD: request_desk
 
@@ -85,6 +86,8 @@ jobs:
 
       - name: Migrate
         working-directory: apps/api
+        env:
+          DB_DATABASE: request_desk
         run: php artisan migrate --force
 
       - name: Build
