@@ -25,7 +25,7 @@ docker run --rm -v /tmp/ci-clean:/src -w /src/apps/api php:8.3-cli <ci step>
 - name: Migrate
   run: php artisan migrate --force
   env:
-    DB_DATABASE: request_desk_test   # matches the database the service provisions
+    DB_DATABASE: request_desk   # the database the MariaDB service creates
 ```
 
 ## Bad
