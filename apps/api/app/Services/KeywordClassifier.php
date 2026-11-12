@@ -27,4 +27,9 @@ class KeywordClassifier implements Classifier
 
         return new Classification(Category::Unknown, 0.4);
     }
+
+    public function source(): string
+    {
+        return 'keyword';
+    }
 }

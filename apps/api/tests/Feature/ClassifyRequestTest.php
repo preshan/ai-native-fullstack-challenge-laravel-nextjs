@@ -157,4 +157,9 @@ class FixedClassifier implements Classifier
     {
         return new Classification($this->category, $this->confidence);
     }
+
+    public function source(): string
+    {
+        return 'fixed';
+    }
 }

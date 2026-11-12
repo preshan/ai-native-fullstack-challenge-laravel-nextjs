@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ClassifyRequest;
+use App\Http\Requests\ListHistoryRequest;
 use App\Http\Requests\ListRequestsRequest;
+use App\Http\Resources\ClassificationRecordResource;
 use App\Http\Resources\ClassificationResource;
 use App\Http\Resources\RequestListItemResource;
 use App\Services\ClassificationService;
@@ -25,12 +27,11 @@ class RequestsController extends Controller
         );
     }
 
-    public function history(Request $request)
+    public function history(ListHistoryRequest $request): AnonymousResourceCollection
     {
-        return [
-            'items' => [],
-            'message' => 'Classification history is not implemented yet.',
-        ];
+        return ClassificationRecordResource::collection(
+            $this->classification->history($request->category(), $request->perPage()),
+        );
     }
 
     public function show(string $id)

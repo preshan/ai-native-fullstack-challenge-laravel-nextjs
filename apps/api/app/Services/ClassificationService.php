@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Contracts\Classifier;
 use App\Enums\Category;
+use App\Models\ClassificationRecord;
 use App\ValueObjects\Classification;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class ClassificationService
 {
@@ -17,17 +20,46 @@ class ClassificationService
     {
         $classification = $this->applyRules($message, $this->classifier->classify($message));
 
-        if ($requestId !== null) {
-            $existing = $this->requests->getById($requestId);
-            $existing->category = $classification->category->value;
-            $existing->confidence = $classification->confidence;
-            if ($existing->status === 'open') {
-                $existing->status = 'in_progress';
+        DB::transaction(function () use ($classification, $requestId) {
+            if ($requestId !== null) {
+                $existing = $this->requests->getById($requestId);
+                $existing->category = $classification->category->value;
+                $existing->confidence = $classification->confidence;
+                if ($existing->status === 'open') {
+                    $existing->status = 'in_progress';
+                }
+                $this->requests->save($existing);
             }
-            $this->requests->save($existing);
-        }
+
+            $this->record($classification, $requestId);
+        });
 
         return $classification;
+    }
+
+    /**
+     * Newest first. Optional category filter, same pagination limits as the list.
+     *
+     * @return LengthAwarePaginator<int, ClassificationRecord>
+     */
+    public function history(?Category $category, int $perPage): LengthAwarePaginator
+    {
+        return ClassificationRecord::query()
+            ->with('request:id,message')
+            ->when($category, fn ($query) => $query->where('category', $category->value))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+    }
+
+    private function record(Classification $classification, ?string $requestId): void
+    {
+        ClassificationRecord::create([
+            'customer_request_id' => $requestId,
+            'category' => $classification->category->value,
+            'confidence' => $classification->confidence,
+            'source' => $this->classifier->source(),
+        ]);
     }
 
     private function applyRules(string $message, Classification $classification): Classification
