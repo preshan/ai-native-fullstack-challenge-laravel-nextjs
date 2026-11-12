@@ -17,6 +17,9 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  // useMutation only keeps the latest variables, so track every in-flight row ourselves.
+  const [pendingStatuses, setPendingStatuses] = useState<Record<string, RequestStatus>>({});
+  const [pendingClassifies, setPendingClassifies] = useState<Record<string, true>>({});
 
   const requestsQuery = useInfiniteQuery({
     queryKey: ['requests'],
@@ -26,25 +29,27 @@ export default function HomePage() {
       meta.current_page < meta.last_page ? meta.current_page + 1 : undefined,
   });
 
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = requestsQuery;
+  const { hasNextPage, isFetching, isFetchingNextPage, fetchNextPage } = requestsQuery;
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
-    if (!sentinel || !hasNextPage || isFetchingNextPage) {
+    // Gate on any fetch (including invalidate refreshes). fetchNextPage would otherwise
+    // cancel that refresh by default and leave the table stale after a successful action.
+    if (!sentinel || !hasNextPage || isFetching) {
       return;
     }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          fetchNextPage();
+          fetchNextPage({ cancelRefetch: false });
         }
       },
       { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
   const createMutation = useMutation({
     mutationFn: (message: string) => createRequest(message),
@@ -58,19 +63,32 @@ export default function HomePage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: RequestStatus }) =>
       updateRequestStatus(id, status),
-    onMutate: () => setFeedback(null),
+    onMutate: ({ id, status }) => {
+      setFeedback(null);
+      setPendingStatuses((current) => ({ ...current, [id]: status }));
+    },
     onSuccess: (_data, { status }) => {
       setFeedback({ kind: 'success', text: `Status updated to ${status}.` });
       return queryClient.invalidateQueries({ queryKey: ['requests'] });
     },
     onError: (error) => setFeedback({ kind: 'error', text: error.message }),
+    onSettled: (_data, _error, { id }) => {
+      setPendingStatuses((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    },
   });
 
   // Classify can also move the request from open to in_progress, so refetch rather than patch the row.
   const classifyMutation = useMutation({
     mutationFn: ({ id, message }: { id: string; message: string }) =>
       classifyMessage(message, id),
-    onMutate: () => setFeedback(null),
+    onMutate: ({ id }) => {
+      setFeedback(null);
+      setPendingClassifies((current) => ({ ...current, [id]: true }));
+    },
     onSuccess: ({ category, confidence }) => {
       setFeedback({
         kind: 'success',
@@ -79,12 +97,17 @@ export default function HomePage() {
       return queryClient.invalidateQueries({ queryKey: ['requests'] });
     },
     onError: (error) => setFeedback({ kind: 'error', text: error.message }),
+    onSettled: (_data, _error, { id }) => {
+      setPendingClassifies((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    },
   });
 
-  const isUpdatingStatus = (id: string) =>
-    statusMutation.isPending && statusMutation.variables?.id === id;
-  const isClassifying = (id: string) =>
-    classifyMutation.isPending && classifyMutation.variables?.id === id;
+  const isUpdatingStatus = (id: string) => pendingStatuses[id] !== undefined;
+  const isClassifying = (id: string) => pendingClassifies[id] !== undefined;
 
   if (requestsQuery.isLoading) {
     return <p className="text-slate-600">Loading requests…</p>;
@@ -177,7 +200,7 @@ export default function HomePage() {
                 <td className="px-4 py-3">
                   <select
                     className="rounded border border-slate-300 bg-white px-2 py-1 disabled:opacity-50"
-                    value={isUpdatingStatus(row.id) ? statusMutation.variables?.status : row.status}
+                    value={pendingStatuses[row.id] ?? row.status}
                     disabled={isUpdatingStatus(row.id) || isClassifying(row.id)}
                     onChange={(e) =>
                       statusMutation.mutate({
