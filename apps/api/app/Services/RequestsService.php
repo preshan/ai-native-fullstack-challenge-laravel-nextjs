@@ -4,41 +4,32 @@ namespace App\Services;
 
 use App\Models\CustomerRequest;
 use App\Models\RequestNote;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class RequestsService
 {
     /**
-     * @return array<int, array{id: string, message: string, status: string, category: string|null, confidence: float|null, noteCount: int, latestNotePreview: string|null, createdAt: string, updatedAt: string}>
+     * Newest first. Note count and latest note come from subqueries, so the page
+     * costs one count query and one select regardless of how many rows it holds.
+     *
+     * @return LengthAwarePaginator<int, CustomerRequest>
      */
-    public function list(): array
+    public function list(int $perPage): LengthAwarePaginator
     {
-        $rows = CustomerRequest::query()
+        $latestNoteBody = RequestNote::query()
+            ->select('body')
+            ->whereColumn('request_notes.request_id', 'customer_requests.id')
             ->orderByDesc('created_at')
-            ->get();
+            ->limit(1);
 
-        $items = [];
-        foreach ($rows as $row) {
-            $notes = RequestNote::query()
-                ->where('request_id', $row->id)
-                ->orderByDesc('created_at')
-                ->get();
-            $row->setRelation('notes', $notes);
-
-            $items[] = [
-                'id' => $row->id,
-                'message' => $row->message,
-                'status' => $row->status,
-                'category' => $row->category,
-                'confidence' => $row->confidence,
-                'noteCount' => $notes->count(),
-                'latestNotePreview' => $notes->first()?->body,
-                'createdAt' => $row->created_at->toISOString(),
-                'updatedAt' => $row->updated_at->toISOString(),
-            ];
-        }
-
-        return $items;
+        return CustomerRequest::query()
+            ->select('customer_requests.*')
+            ->withCount('notes')
+            ->addSelect(['latest_note_preview' => $latestNoteBody])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
     }
 
     public function getById(string $id): CustomerRequest

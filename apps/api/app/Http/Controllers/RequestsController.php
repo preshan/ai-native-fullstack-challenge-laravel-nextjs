@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListRequestsRequest;
+use App\Http\Resources\RequestListItemResource;
 use App\Services\KeywordClassifier;
 use App\Services\RequestsService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class RequestsController extends Controller
 {
@@ -14,9 +17,11 @@ class RequestsController extends Controller
     ) {
     }
 
-    public function list()
+    public function list(ListRequestsRequest $request): AnonymousResourceCollection
     {
-        return $this->requestsService->list();
+        return RequestListItemResource::collection(
+            $this->requestsService->list($request->perPage()),
+        );
     }
 
     public function history(Request $request)
