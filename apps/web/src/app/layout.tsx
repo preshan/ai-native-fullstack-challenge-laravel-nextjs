@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import './globals.css';
 import { Providers } from './providers';
 
@@ -22,12 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <h1 className="text-lg font-semibold">Request Desk</h1>
                 </div>
                 <nav className="flex gap-4 text-sm">
-                  <a className="text-slate-700 hover:text-slate-900" href="/">
+                  <Link className="text-slate-700 hover:text-slate-900" href="/">
                     Requests
-                  </a>
-                  <a className="text-slate-700 hover:text-slate-900" href="/history">
+                  </Link>
+                  <Link className="text-slate-700 hover:text-slate-900" href="/history">
                     History
-                  </a>
+                  </Link>
                 </nav>
               </div>
             </header>
